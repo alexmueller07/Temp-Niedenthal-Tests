@@ -146,6 +146,7 @@
       <output id="yawOut">0°</output></label>
   </div>
   <div class="row" style="margin-top:8px">
+    <button id="sweepYaw">▶ sweep head turn</button>
     <button id="sweepRoll">▶ sweep head roll</button>
     <button id="sweepPitch">▶ sweep camera height</button>
     <button id="sweepScale">▶ sweep distance</button>
@@ -155,6 +156,11 @@
     <button id="record">⬇ record 60 s</button>
   </div>
   <p class="note">
+    Head turn is the one to try first. The shipped morph fades itself to zero as
+    the head turns, and head turns track who is speaking — so the dose a
+    participant receives currently depends on whether they are listening or
+    talking. Watch the orange trace collapse and the green one hold.
+    <br>
     A pure camera rotation is an exact homography, so roll and camera height are
     real simulations rather than approximations. Head turn is not: it also changes
     what the face hides from view, which no image warp can reproduce — so treat

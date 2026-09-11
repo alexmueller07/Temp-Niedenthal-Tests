@@ -340,6 +340,7 @@ class Demo {
         btn.classList.add('on')
       })
     }
+    sweepBtn('sweepYaw', 'yawDeg', -26, 26)
     sweepBtn('sweepRoll', 'rollDeg', -22, 22)
     sweepBtn('sweepPitch', 'pitchDeg', -18, 18)
     sweepBtn('sweepScale', 'scale', 0.7, 1.4)

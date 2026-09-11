@@ -72,12 +72,32 @@ Database at `C:\Users\amuel\Downloads\cfd`.
 .venv/Scripts/python.exe tools/build_corpus.py --n 160 --paired-only
 .venv/Scripts/python.exe tools/export_amplitudes.py
 .venv/Scripts/python.exe tools/export_rests.py
-bash scratchpad/run_all.sh                          # ~90 min
+
+# cross-face, geometry layer only
+.venv/Scripts/python.exe tools/run_batch.py --n 100 --headed --label e1-prior
+# cross-face, full normalization
+.venv/Scripts/python.exe tools/run_batch.py --n 100 --headed --calibrated --label e1-calibrated
+# within-face camera ablation (10 views; slow, use --chunk 1 for incremental output)
+.venv/Scripts/python.exe tools/run_batch.py --n 10 --headed --calibrated --pose --chunk 1 --label e2-pose
+# renders for independent scoring
+.venv/Scripts/python.exe tools/run_batch.py --n 30 --headed --calibrated --export-pngs --label e3-renders
+
 .venv/Scripts/python.exe tools/analyze.py --run <runId>
+.venv/Scripts/python.exe tools/figures.py --e1 <runId> --e2 <runId>
+.venv/Scripts/python.exe tools/openface_score.py --run <e3 runId>
 ```
+
+Roughly 20 minutes for a 100-face single-view run; the camera ablation is about
+ten times that because every view is re-rendered and re-scored.
 
 `--headed` parks a real browser window off-screen and is 2.7× faster than
 headless, because headless falls back to a software GPU.
+
+### Checks
+
+```bash
+npm test    # typecheck + the src/algo portability rule + the pose-invariance gate
+```
 
 ---
 

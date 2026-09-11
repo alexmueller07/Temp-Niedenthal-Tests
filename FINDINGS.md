@@ -270,17 +270,50 @@ human ratings.
 
 ## What follows
 
-- Equalizing the *geometry* is worth doing — head-turn is a genuine confound and
-  roll costs 12% — but it is not what Randy noticed. It buys maybe 10-15%.
+- Equalizing the *geometry* is worth doing — head turn is a genuine confound and
+  roll costs 12% — but it is not what Randy noticed. On its own it left the
+  cross-face dispersion unchanged (§10). What it did buy is a more consistent
+  *appearance* change (blendshape P90/P10 5.9 → 3.3) and a warp whose shape comes
+  from 307 real smiles rather than a hand-tuned formula.
 - Equalizing the *dose relative to each person's expressive range* is the real
-  job, it is worth a factor of about 3, and it **requires observing the person
-  smile several times**. There is no way around that: the face itself does not
+  job. Measured, it halves the spread (CV 0.232 → 0.111, §10), which is as far
+  as the measurement can resolve. It **requires observing the person smile
+  several times**; there is no way around that, because the face itself does not
   tell you.
 - So the design question for Randy and Paula is not really an algorithm
   question. It is: **do we want the manipulation scaled to each person's own
   expressive range, and if so, is the study willing to spend a few minutes of
   conversation calibrating before the manipulation starts?** Both answers are
   defensible; they lead to different studies.
+
+## Is there newer technology that would just solve this?
+
+Asked, researched, and the answer is no — not on this hardware, and not for this
+problem.
+
+**Neural portrait reenactment** (LivePortrait and its successors) does solve the
+cross-identity retargeting problem properly: it has explicit modules that map a
+desired scalar — how open should these eyes be — into a latent change for *this*
+face, which is exactly the shape of what we want. It runs at about 13 ms, on an
+RTX 4090. There is no NVIDIA GPU on this machine or on the lab's, and identity
+preservation in a covert manipulation is a risk the lab would have to argue about
+with the IRB rather than a free win. Documented, not built.
+
+**3D morphable models** (FLAME and relatives) give identity-normalized
+expression coefficients by construction, which is the property we want. The
+obstacle is not the fit, it is the render: putting a photorealistic face back on
+screen with consistent skin, teeth and lighting is the hard half, and a bad
+render is far more detectable than a mild warp.
+
+**What did help, and is not new at all:** the deformation is now defined by 307
+real neutral-to-smile pairs instead of a formula, and the warp is Moving Least
+Squares (Schaefer et al. 2006) — the same method the original DuckSoup's own
+plugin uses. Mozza encodes its deformation as barycentric coordinates in the
+live face's own landmark triangles, which gets scale and rotation invariance for
+free; that idea is good and is why this implementation works in a canonical
+frame. What Mozza does not have, and what this adds, is any notion of how big the
+*particular person's* smile is — its template is one person's smile applied to
+everyone.
 
 ## The validation this is missing, and how to run it
 
@@ -321,6 +354,11 @@ preregistered for the strong preset rather than assumed to be zero.
 - **The pose sweep rotates a landmark cloud and re-projects it.** For a pure
   camera rotation that is exact; for head rotation it ignores self-occlusion and
   shading, so nothing here is claimed beyond about ±30°.
+- **The population prior is fitted on posed smiles.** The live calibrator would
+  observe conversational ones, which are smaller, so the prior and the
+  observations are on different scales and shrinkage biases the early estimate.
+  This does not touch any result above (amplitudes were supplied directly) but
+  it has to be fixed before per-person calibration runs in a study.
 - **CFD is posed, studio-lit, frontal, high-resolution.** Lab webcam conditions
   are none of those. The geometric findings should transfer; the landmark noise
   will not.

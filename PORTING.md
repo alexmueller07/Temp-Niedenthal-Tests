@@ -119,6 +119,15 @@ smiles have been seen and how much weight the estimate carries. Put it in
 `Telemetry` and in the session manifest: the researcher needs to know whether a
 participant ran calibrated or on the default, and so does the analysis.
 
+**The prior is on the wrong scale.** `AMPLITUDE_STATS` is fitted on Chicago Face
+Database photographs, where people are posing a smile for a camera.
+Conversational smiles are smaller, so the population prior sits above what the
+live estimator will observe, and shrinkage toward it biases the amplitude upward
+until several smiles have accumulated. Re-fit the prior on conversational video —
+RAVDESS would do, or lab recordings if consent covers reuse — before enabling
+this in a study. The offline results are unaffected because they supply
+amplitudes directly.
+
 **The freeze rule.** The estimate is held still while the morph is on and only
 adopted when it returns to neutral, so the dose cannot drift mid-trial. This is
 already implemented; do not remove it.

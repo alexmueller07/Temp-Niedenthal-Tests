@@ -17,6 +17,16 @@
 // Direction is NOT estimated. Real smiles point almost the same way in almost
 // everyone (mean cosine with the corpus axis: 0.96), so there is nothing there
 // to learn and learning it would only add variance.
+//
+// KNOWN SCALE MISMATCH, unresolved. The population prior below comes from the
+// Chicago Face Database, whose smiles are *posed for a camera*. What this class
+// observes live are *conversational* smiles, which are typically smaller. So the
+// prior and the observations are not on the same scale, and shrinking one toward
+// the other biases the estimate downward early in a session, fading as evidence
+// accumulates. It does not affect the offline evaluation (which supplies
+// amplitudes directly) but it does affect the live path, and the prior should be
+// re-fitted on conversational video before per-person calibration is switched on
+// in a study. Flagged in FINDINGS.md and PORTING.md.
 
 import { AMPLITUDE_RELIABILITY, AMPLITUDE_STATS, POPULATION_REST } from './faceModel.gen'
 import { DRIVEN } from './constants'
