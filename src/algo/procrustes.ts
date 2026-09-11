@@ -199,6 +199,59 @@ export function decodePose(matrix: number[] | Float32Array | null): HeadPose | n
 }
 
 /**
+ * How much the rigid anchor set itself shrinks under a given head rotation.
+ *
+ * This exists to stop a double count. The frame's `scale` comes from fitting an
+ * isotropic similarity to the anchors, and those anchors foreshorten when the
+ * head turns — so `scale` already carries some of the pose. Applying an explicit
+ * cos(yaw) foreshortening to the displacement on top of that would shrink the
+ * morph twice.
+ *
+ * So: measure what the fit would report for a face at this pose showing no
+ * expression at all, and divide it out. What is left is a pose-free scale, and
+ * the explicit foreshortening applied to the displacement is then the only place
+ * pose enters.
+ *
+ * The anchors are treated as planar. They are not exactly — the nose bridge has
+ * depth — which is why the nose tip carries the lowest weight in the rigid set.
+ */
+export function poseScaleFactor(template: Float64Array, pose: HeadPose | null): number {
+  if (!pose) return 1
+  const r = pose.r3
+  const n = template.length >> 1
+
+  let mx = 0, my = 0
+  for (let i = 0; i < n; i++) { mx += template[2 * i]; my += template[2 * i + 1] }
+  mx /= n; my /= n
+
+  // Rotate the (planar) template and re-project, then read off the isotropic
+  // scale a Procrustes fit would recover.
+  let sxx = 0, sxy = 0, sqq = 0
+  let rmx = 0, rmy = 0
+  const rot = new Float64Array(2 * n)
+  for (let i = 0; i < n; i++) {
+    const x = template[2 * i] - mx, y = template[2 * i + 1] - my
+    const px = r[0] * x + r[1] * y
+    const py = r[3] * x + r[4] * y
+    rot[2 * i] = px; rot[2 * i + 1] = py
+    rmx += px; rmy += py
+  }
+  rmx /= n; rmy /= n
+  for (let i = 0; i < n; i++) {
+    const qx = template[2 * i] - mx, qy = template[2 * i + 1] - my
+    const px = rot[2 * i] - rmx, py = rot[2 * i + 1] - rmy
+    sxx += qx * px + qy * py
+    sxy += qx * py - qy * px
+    sqq += qx * qx + qy * qy
+  }
+  if (sqq < 1e-12) return 1
+  const f = Math.hypot(sxx, sxy) / sqq
+  // Guard: past a steep angle the planar approximation stops meaning anything,
+  // and an unbounded division would blow the morph up.
+  return Math.min(1, Math.max(0.6, f))
+}
+
+/**
  * Project a canonical on-face displacement out through the head rotation.
  *
  * A smile happens on the surface of the face, so under yaw or pitch its image

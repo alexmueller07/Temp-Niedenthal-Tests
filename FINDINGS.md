@@ -196,6 +196,78 @@ mean the warp drags cheek skin harder than lip.
 
 ---
 
+## 10. Does the replacement actually fix it?
+
+Everything above is about the current morph. This section is about the one built
+to replace it. Both implementations were run over the same 100 faces, re-framed
+to webcam geometry (1280x720, interpupillary distance 95 px), and the rendered
+output was measured by a *separate* detector and differenced against a sham
+render of the identical frame — so what is reported is what the warp achieved,
+not what it intended.
+
+**The dose, as a share of each person's own smile** (α = 1.9):
+
+| | CV | P90/P10 | range |
+|---|---|---|---|
+| current | 0.232 | 1.79 | 0.081 – 0.222 (2.7x) |
+| normalized | **0.111** | **1.29** | 0.084 – 0.163 (1.9x) |
+
+A 52% reduction, and 0.111 is at the floor of what can be measured: re-detecting
+the same warp on the same face recovers it with about 12% frame-to-frame spread,
+so the residual is instrument noise rather than remaining inequality.
+
+Two things worth being precise about:
+
+- **The geometric dose becomes *more* variable** (CV 0.098 → 0.196), and that is
+  correct. Scaling to each person's expressive range means an expressive person
+  gets physically more displacement. The two cannot both be flat; that is the
+  choice in §"What follows".
+- **The appearance change also became more consistent** — MediaPipe's smile
+  blendshape change went from CV 0.517 (P90/P10 5.9) to 0.396 (P90/P10 3.3) —
+  and that improvement comes from the *warp shape*, not the amplitude
+  normalization: the uncalibrated run shows it too. Driving the deformation
+  along a smile axis fitted to 307 real neutral-to-smile pairs produces a more
+  uniform appearance change than the hand-tuned field does.
+
+## 11. The "strong" preset is past what an image warp can render
+
+Local area stretch in the rendered output, measured per frame:
+
+| preset | median stretch | frames over 2x | over 4x | worst |
+|---|---|---|---|---|
+| α = 1.35 (subtle) | 1.45x | 0/100 | 0/100 | 1.85x |
+| α = 1.9 (strong) | 3.08x | 93/100 | 24/100 | 9.3x |
+
+That is not the new warp being clumsy. Measured on the *commanded deformation*
+rather than the pixels — strain between neighbouring lip landmarks, which is
+warp-independent:
+
+| | strain |
+|---|---|
+| current morph, α = 1.9 | 0.29 |
+| normalized, α = 1.9 | 1.08 |
+| **a real closed-mouth smile** | **0.65** |
+| **a real toothy smile** | **1.30** |
+
+So the normalized morph at the strong preset asks the skin to deform by roughly
+what a real toothy smile does — on a closed mouth, in 2D, with no new pixels to
+work with. The current morph asks for 0.29, which is *less* than any real smile:
+it under-deforms locally, which is consistent with it reading as a smear rather
+than an expression.
+
+**Recommendation:** the strong preset should be about **α = 1.5**, not 1.9. That
+is where the commanded deformation matches a real closed-mouth smile (strain
+0.65) and where rendered stretch stays near 2x. At 1.9 the manipulation is
+larger than most people's own closed-mouth smile, which is both why the RAs
+called it uncanny and why it stretches texture visibly.
+
+A caveat on all of this: real skin is elastic and self-shadows, an image warp
+only moves texture. Matching the strain of a real smile does not guarantee it
+*looks* like one. That is a question for eyes on the demo, and ultimately for
+human ratings.
+
+---
+
 ## What follows
 
 - Equalizing the *geometry* is worth doing — head-turn is a genuine confound and

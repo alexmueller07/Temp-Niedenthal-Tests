@@ -28,9 +28,9 @@ import { Calibration, type CalibrationStatus } from './calibration'
 import { ExpressionDetector } from './expressionDetector'
 import { createLandmarker } from './landmarkerHost'
 import { OneEuroLandmarks } from './oneEuro'
-import { POPULATION_AXIS, smileProjection } from './smileMetric'
+import { POPULATION_AXIS, readSmile } from './smileMetric'
 import {
-  decodePose, fitFrame, ipdPx, toCanonical, toImageDelta,
+  decodePose, fitFrame, ipdPx, poseScaleFactor, toCanonical, toImageDelta,
   type Frame, type HeadPose, type Pt,
 } from './procrustes'
 import { warpRegion, type WarpQuality, type Vec2 } from './warp'
@@ -305,7 +305,7 @@ export class FaceMorphNormalized implements FaceMorphAPI {
 
     // --- control --------------------------------------------------------
     // Live smile, as a fraction of this person's own full smile.
-    const liveUnits = smileProjection(canonMouth, this.calib.restShape) / amplitude
+    const liveUnits = readSmile(canonMouth, this.calib.restShape).projection / amplitude
     const commanded = (this.alphaCurrent - 1) * this.opts.alphaScale
 
     let targetUnits: number
@@ -346,8 +346,14 @@ export class FaceMorphNormalized implements FaceMorphAPI {
     this.debugState.displayedSmileUnits = liveUnits + deltaUnits
 
     // --- displacement ----------------------------------------------------
-    const cosYaw = pose ? Math.cos(pose.yawDeg * Math.PI / 180) : 1
-    const cosPitch = pose ? Math.cos(pose.pitchDeg * Math.PI / 180) : 1
+    // A smile happens on the surface of the face, so its image projection
+    // should foreshorten as the head turns — that is what a real smile does.
+    // But the fitted frame scale has already absorbed part of that, because the
+    // rigid anchors foreshorten too; dividing by poseScaleFactor removes the
+    // double count so pose enters exactly once.
+    const poseScale = poseScaleFactor(this.template, pose)
+    const cosYaw = (pose ? Math.cos(pose.yawDeg * Math.PI / 180) : 1) / poseScale
+    const cosPitch = (pose ? Math.cos(pose.pitchDeg * Math.PI / 180) : 1) / poseScale
 
     // Index of each warp-driven landmark inside the measurement set, so the
     // axis is read from the right slot.

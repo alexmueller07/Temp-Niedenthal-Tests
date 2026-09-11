@@ -67,7 +67,9 @@ export function projectOut(v: Float64Array, basis: Float64Array[]): Float64Array
       const d = dot(w, q)
       for (let i = 0; i < DIM; i++) w[i] -= d * q[i]
     }
-    const n = Math.hypot(...Array.from(w))
+    let n = 0
+    for (let i = 0; i < DIM; i++) n += w[i] * w[i]
+    n = Math.sqrt(n)
     if (n < 1e-9) continue
     for (let i = 0; i < DIM; i++) w[i] /= n
     ortho.push(w)
@@ -79,38 +81,38 @@ export function projectOut(v: Float64Array, basis: Float64Array[]): Float64Array
   return out
 }
 
+export interface SmileReading {
+  /** Projection onto the population smile axis, in canonical shape units — the
+   *  same units the calibrated per-person amplitude is in, so their ratio is
+   *  "what fraction of their own full smile is this". */
+  projection: number
+  /** Total nuisance-free shape change from rest. The amplitude estimator that
+   *  came out most reliable on CFD (test-retest r = 0.56, against 0.53 and 0.52
+   *  for the two alternatives). */
+  magnitude: number
+}
+
 /**
  * How much this face is smiling right now, relative to a rest shape.
  *
- * Returns the projection onto the population smile axis in canonical shape
- * units — the same units the calibrated per-person amplitude is measured in, so
- * their ratio is "what fraction of their own full smile is this".
+ * Returns both quantities from one projection. They used to be two functions,
+ * which meant rebuilding and re-orthonormalising the nuisance basis two or three
+ * times per frame for no reason — the expensive part is the projection, not the
+ * dot product at the end.
  */
-export function smileProjection(
+export function readSmile(
   canonMouth: ArrayLike<Pt>, rest: Float64Array,
-): number {
+): SmileReading {
   const d = new Float64Array(DIM)
   for (let k = 0; k < N; k++) {
     d[2 * k] = canonMouth[k].x - rest[2 * k]
     d[2 * k + 1] = canonMouth[k].y - rest[2 * k + 1]
   }
   const clean = projectOut(d, nuisanceBasis(canonMouth))
-  return dot(clean, POPULATION_AXIS)
-}
-
-/** Total nuisance-free shape change from rest — the amplitude estimator that
- *  came out most reliable on CFD (test-retest r = 0.56, vs 0.53 and 0.52 for
- *  the two alternatives). */
-export function shapeChangeMagnitude(
-  canonMouth: ArrayLike<Pt>, rest: Float64Array,
-): number {
-  const d = new Float64Array(DIM)
-  for (let k = 0; k < N; k++) {
-    d[2 * k] = canonMouth[k].x - rest[2 * k]
-    d[2 * k + 1] = canonMouth[k].y - rest[2 * k + 1]
+  return {
+    projection: dot(clean, POPULATION_AXIS),
+    magnitude: Math.sqrt(dot(clean, clean)),
   }
-  const clean = projectOut(d, nuisanceBasis(canonMouth))
-  return Math.sqrt(dot(clean, clean))
 }
 
 /** Flatten a canonical mouth shape into the [x,y,…] layout used throughout. */

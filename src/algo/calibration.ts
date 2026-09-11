@@ -20,7 +20,7 @@
 
 import { AMPLITUDE_RELIABILITY, AMPLITUDE_STATS, POPULATION_REST } from './faceModel.gen'
 import { DRIVEN } from './constants'
-import { shapeChangeMagnitude, smileProjection } from './smileMetric'
+import { readSmile } from './smileMetric'
 import type { Pt } from './procrustes'
 
 const N = DRIVEN.length
@@ -198,7 +198,7 @@ export class Calibration {
       flat[2 * k] = canonMouth[k].x
       flat[2 * k + 1] = canonMouth[k].y
     }
-    const q = smileProjection(canonMouth, this.rest)
+    const { projection: q, magnitude: mag } = readSmile(canonMouth, this.rest)
 
     if (this.restBuf.length < REST_WINDOW) {
       this.restBuf.push(flat)
@@ -216,7 +216,6 @@ export class Calibration {
 
     // --- smile events: peak nuisance-free shape change per excursion ---------
     const prior = AMPLITUDE_STATS.p50
-    const mag = shapeChangeMagnitude(canonMouth, this.rest)
 
     if (!this.eventOpen) {
       if (q > EVENT_ON * prior) {

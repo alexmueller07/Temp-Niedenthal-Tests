@@ -160,6 +160,8 @@ def main() -> int:
 
     ap.add_argument("--label", default="")
 
+    ap.add_argument("--alphas", default="",
+                    help="comma-separated; defaults to the production presets")
     ap.add_argument("--export-pngs", action="store_true",
 
                     help="save rendered frames for offline scoring by OpenFace")
@@ -188,6 +190,8 @@ def main() -> int:
 
 
 
+    alphas = ([float(a) for a in args.alphas.split(",")]
+              if args.alphas else DEFAULT_ALPHAS)
     amps = load_amplitudes() if args.calibrated else {}
     rests = {}
     if args.calibrated:
@@ -297,7 +301,7 @@ def main() -> int:
 
                         "frames": chunk,
 
-                        "alphas": DEFAULT_ALPHAS,
+                        "alphas": alphas,
 
                         "views": views,
 
@@ -366,7 +370,7 @@ def main() -> int:
 
         "runId": run_id, "frames": len(frames), "views": [v["name"] for v in views],
 
-        "alphas": DEFAULT_ALPHAS, "unit": args.unit, "law": args.law,
+        "alphas": alphas, "unit": args.unit, "law": args.law,
 
         "calibrated": bool(amps), "expr": args.expr, "rows": written,
 
