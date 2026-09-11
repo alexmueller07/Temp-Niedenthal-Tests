@@ -22,8 +22,24 @@ export const INNER_LIP = [
   308, 415, 310, 311, 312, 13, 82, 81, 80, 191,
 ] as const
 
-/** Everything the morph is allowed to move. */
+/** Everything the morph MEASURES: rest shape, smile projection, amplitude.
+ *  Includes the inner ring because the aperture carries real information about
+ *  what the mouth is doing. */
 export const DRIVEN: readonly number[] = [...OUTER_LIP, ...INNER_LIP]
+
+/**
+ * What the warp is allowed to DRIVE, which is a smaller set.
+ *
+ * The inner-lip contours nearly coincide when the mouth is closed — opposing
+ * upper and lower landmarks come within about 0.002 interpupillary units, a
+ * fifth of a pixel at normal webcam scale. Giving two coincident points
+ * different displacements asks the warp to pull them apart, which showed up as
+ * local stretch of up to 23x and visible smearing across the vermilion border.
+ * Driving from the outer ring alone leaves the interior to the warp's own
+ * smoothness, which is well behaved. Mozza drives from the outer ring only for
+ * the same reason.
+ */
+export const WARP_DRIVEN: readonly number[] = [...OUTER_LIP]
 
 export const LEFT_CORNER = 61
 export const RIGHT_CORNER = 291

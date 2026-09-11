@@ -81,6 +81,55 @@ def main() -> int:
 
     consistency = float(np.mean([float(a @ axis) for a in axes]))
 
+    # Reliability of a single amplitude observation: correlate each person's
+    # closed-mouth against their toothy smile amplitude.
+    pair_a, pair_b = [], []
+    for pid, m in by_id.items():
+        if not {"N", "HC", "HO"} <= set(m):
+            continue
+        vals = []
+        for e in ("HC", "HO"):
+            cn = frames[m["N"]].to_canonical(pts[m["N"]])[fg.DRIVEN]
+            cs = frames[m[e]].to_canonical(pts[m[e]])[fg.DRIVEN]
+            y = (cs - cn).reshape(-1)
+            basis = fg.nuisance_basis(cn, fg.DRIVEN)
+            vals.append(float(np.linalg.norm(
+                fg.project_out(y, [basis[k] for k in PROJECT]))))
+        pair_a.append(vals[0])
+        pair_b.append(vals[1])
+    reliability = float(np.corrcoef(pair_a, pair_b)[0, 1])
+
+    # Two physical scales, so the new implementation can be dialled to the same
+    # intensity as the current one. Without this the A/B comparison would change
+    # two things at once -- how equal the dose is, AND how big it is.
+    ci = {idx: k for k, idx in enumerate(fg.DRIVEN)}
+    corner_travel = []
+    for pid, m in by_id.items():
+        if "N" not in m:
+            continue
+        for e in ("HC", "HO"):
+            if e not in m:
+                continue
+            cn = frames[m["N"]].to_canonical(pts[m["N"]])[fg.DRIVEN]
+            cs = frames[m[e]].to_canonical(pts[m[e]])[fg.DRIVEN]
+            y = (cs - cn).reshape(-1)
+            basis = fg.nuisance_basis(cn, fg.DRIVEN)
+            d = fg.project_out(y, [basis[k] for k in PROJECT]).reshape(-1, 2)
+            corner_travel.append(float(
+                (np.linalg.norm(d[ci[fg.LEFT_CORNER]])
+                 + np.linalg.norm(d[ci[fg.RIGHT_CORNER]])) / 2))
+    corner_full = float(np.median(corner_travel))
+
+    cur = []
+    for i in neutral:
+        w_, h_ = int(z["dims"][i][0]), int(z["dims"][i][1])
+        mm = fg.current_morph_delivery(pts[i], 1.9, w_, h_)
+        ipd = fg.ipd_px(pts[i])
+        if ipd > 1e-6:
+            cur.append(mm.d_px / ipd)
+    cur_19 = float(np.median(cur))
+    alpha_scale = (cur_19 / corner_full) / 0.9
+
     def fmt(v: float) -> str:
         return f"{v:.6f}"
 
@@ -142,6 +191,28 @@ export const AMPLITUDE_STATS = {{
 
 /** Mean cosine between an individual's smile axis and the population axis. */
 export const AXIS_CONSISTENCY = {consistency:.4f}
+
+/** Test-retest reliability of a single observed smile amplitude, from the
+ *  correlation between each person's closed-mouth and toothy smile. It sets how
+ *  fast a live estimate should overrule the population prior: the Bayes-optimal
+ *  weight on N observations is N / (N + (1 - r) / r), so this constant is
+ *  measured rather than tuned. Treat it as a lower bound -- CFD's two smiles are
+ *  separate posed acts, so some of their disagreement is not measurement error. */
+export const AMPLITUDE_RELIABILITY = {reliability:.4f}
+
+/** Median mouth-corner travel at a full smile, interpupillary units. The
+ *  denominator that turns a displacement into "a fraction of a whole smile". */
+export const CORNER_TRAVEL_AT_FULL_SMILE = {fmt(corner_full)}
+
+/** What the CURRENT production morph delivers at its strongest preset
+ *  (alpha 1.9), median over the corpus, same units. */
+export const CURRENT_TRAVEL_AT_ALPHA_1_9 = {fmt(cur_19)}
+
+/** Smile-units per unit of alpha, chosen so alpha 1.9 lands at the same
+ *  physical magnitude the current morph already delivers on a median face.
+ *  Keeping intensity matched is what makes the A/B honest: the comparison is
+ *  about how EQUAL the dose is, not how big. */
+export const ALPHA_TO_SMILE_UNITS = {fmt(alpha_scale)}
 '''
 
     OUT_TS.write_text(src, encoding="utf-8")
@@ -150,8 +221,13 @@ export const AXIS_CONSISTENCY = {consistency:.4f}
     print(f"  driven landmarks : {len(fg.DRIVEN)}")
     print(f"  smile pairs      : {len(axes)}")
     print(f"  axis consistency : {consistency:.4f}")
+    print(f"  amplitude reliability (1 obs) : {reliability:.4f}" f"  from {len(pair_a)} paired identities")
     print(f"  amplitude p10/p50/p90 : {np.percentile(amps,10):.3f} / "
           f"{np.percentile(amps,50):.3f} / {np.percentile(amps,90):.3f}")
+    print(f"  corner travel at full smile (median) : {corner_full:.4f} IPD")
+    print(f"  current morph at alpha 1.9  (median) : {cur_19:.4f} IPD"
+          f"  = {cur_19/corner_full:.1%} of a full smile")
+    print(f"  alpha -> smile units scale           : {alpha_scale:.4f}")
     return 0
 
 

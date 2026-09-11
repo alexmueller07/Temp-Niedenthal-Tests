@@ -131,3 +131,25 @@ export const AMPLITUDE_STATS = {
 
 /** Mean cosine between an individual's smile axis and the population axis. */
 export const AXIS_CONSISTENCY = 0.9576
+
+/** Test-retest reliability of a single observed smile amplitude, from the
+ *  correlation between each person's closed-mouth and toothy smile. It sets how
+ *  fast a live estimate should overrule the population prior: the Bayes-optimal
+ *  weight on N observations is N / (N + (1 - r) / r), so this constant is
+ *  measured rather than tuned. Treat it as a lower bound -- CFD's two smiles are
+ *  separate posed acts, so some of their disagreement is not measurement error. */
+export const AMPLITUDE_RELIABILITY = 0.5592
+
+/** Median mouth-corner travel at a full smile, interpupillary units. The
+ *  denominator that turns a displacement into "a fraction of a whole smile". */
+export const CORNER_TRAVEL_AT_FULL_SMILE = 0.156926
+
+/** What the CURRENT production morph delivers at its strongest preset
+ *  (alpha 1.9), median over the corpus, same units. */
+export const CURRENT_TRAVEL_AT_ALPHA_1_9 = 0.090799
+
+/** Smile-units per unit of alpha, chosen so alpha 1.9 lands at the same
+ *  physical magnitude the current morph already delivers on a median face.
+ *  Keeping intensity matched is what makes the A/B honest: the comparison is
+ *  about how EQUAL the dose is, not how big. */
+export const ALPHA_TO_SMILE_UNITS = 0.642901
