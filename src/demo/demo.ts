@@ -7,8 +7,17 @@
 // requested.
 //
 // The virtual camera controls are the point of the page. Sweeping head roll
-// makes the current implementation's delivered dose oscillate by about 12%
-// while the normalized one holds flat, and nobody has to move a chair.
+// makes the current implementation's delivered dose oscillate while the
+// normalized one holds flat, and nobody has to move a chair.
+//
+// Only some of those controls are honest simulations. Roll, distance and
+// position are exact — an in-plane rotation or a similarity of the image is the
+// same operation whether the camera does it or we do, and the measured roll
+// comes back within a degree of what is asked. Out-of-plane rotation is not:
+// re-projecting an already-flat photograph keystones it rather than turning the
+// head, and a 20-degree setting reads back as about 7 degrees of turn plus 10 of
+// spurious roll. So the yaw control is labelled 'keystone' and head turn is
+// demonstrated by turning an actual head.
 
 import { FaceMorphCurrent } from '../algo/FaceMorphCurrent'
 import {
@@ -340,7 +349,6 @@ class Demo {
         btn.classList.add('on')
       })
     }
-    sweepBtn('sweepYaw', 'yawDeg', -26, 26)
     sweepBtn('sweepRoll', 'rollDeg', -22, 22)
     sweepBtn('sweepPitch', 'pitchDeg', -18, 18)
     sweepBtn('sweepScale', 'scale', 0.7, 1.4)

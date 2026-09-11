@@ -141,12 +141,11 @@
     <label class="ctl"><span class="name">head roll</span>
       <input type="range" id="roll" min="-25" max="25" step="1" value="0">
       <output id="rollOut">0°</output></label>
-    <label class="ctl"><span class="name">head turn</span>
+    <label class="ctl"><span class="name">keystone</span>
       <input type="range" id="yaw" min="-30" max="30" step="1" value="0">
       <output id="yawOut">0°</output></label>
   </div>
   <div class="row" style="margin-top:8px">
-    <button id="sweepYaw">▶ sweep head turn</button>
     <button id="sweepRoll">▶ sweep head roll</button>
     <button id="sweepPitch">▶ sweep camera height</button>
     <button id="sweepScale">▶ sweep distance</button>
@@ -156,15 +155,20 @@
     <button id="record">⬇ record 60 s</button>
   </div>
   <p class="note">
-    Head turn is the one to try first. The shipped morph fades itself to zero as
-    the head turns, and head turns track who is speaking — so the dose a
-    participant receives currently depends on whether they are listening or
+    <b>For head turn, turn your actual head</b> — that is the condition that
+    matters most and the sliders cannot fake it. The shipped morph fades itself
+    to zero as the head turns, and head turns track who is speaking, so the dose
+    a participant receives currently depends on whether they are listening or
     talking. Watch the orange trace collapse and the green one hold.
     <br>
-    A pure camera rotation is an exact homography, so roll and camera height are
-    real simulations rather than approximations. Head turn is not: it also changes
-    what the face hides from view, which no image warp can reproduce — so treat
-    beyond about ±25° as indicative.
+    Roll, distance and position <i>are</i> exact: an in-plane rotation or a
+    similarity of the image is the same thing whether it happens in the camera or
+    afterwards, and the measured roll comes back within 0.6° of what is asked for.
+    The keystone slider re-projects the image plane; it is <i>not</i> a head turn
+    (a 20° setting reads back as about 7° of turn plus 10° of spurious roll,
+    because rotating a camera about an already-flat picture is not the same as
+    rotating a head). It is there to show the warp surviving a perspective
+    distortion, nothing more.
   </p>
 </div>
 

@@ -70,6 +70,18 @@ DEFAULT_ALPHAS = [1.35, 1.9]
 
 VIEWS_BASE = [{"name": "base", "params": {}}]
 
+# Which of these are honest simulations matters, and it was checked rather than
+# assumed: re-detecting the pose on the transformed frame returns 15.6 deg for a
+# commanded roll of 15, and interpupillary distance scales by exactly the
+# commanded factor. Those are exact, because an in-plane rotation or a similarity
+# of an image is the same operation whether the camera performs it or we do.
+#
+# yaw and pitch are NOT. Re-projecting an already-flat photograph keystones the
+# image plane; it does not turn a head. A commanded 20 deg of yaw reads back as
+# about 7 deg of yaw plus 10 deg of spurious roll. They are kept because showing
+# the warp survives a perspective distortion is worth something, but no head-turn
+# claim may rest on them. The head-turn result in FINDINGS comes from rotating
+# the 3D landmark cloud instead, which is a fair simulation of the geometry.
 VIEWS_POSE = [
 
     {"name": "base", "params": {}},
