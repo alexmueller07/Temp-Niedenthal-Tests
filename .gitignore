@@ -11,6 +11,11 @@ corpus/
 *.avi
 corpus.local.json
 
+# ...except the analysis figures, which are plots of aggregate numbers with no
+# face in them. Anything containing a face goes in figures/faces/ and stays out.
+!artifacts/figures/*.png
+artifacts/figures/faces/
+
 # Derived from CFD images, and keyed by individual model ID: aggregate statistics
 # are fine to publish, per-person values are not.
 artifacts/cache/

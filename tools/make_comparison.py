@@ -32,7 +32,9 @@ from build_corpus import FRAME_H, FRAME_W, TARGET_EYE_Y, TARGET_IPD, reframe  # 
 
 HERE = Path(__file__).parent.parent
 SELF_DIR = Path(r"C:\lab-corpus") / "self"
-OUT = HERE / "artifacts" / "figures"
+# Contains a face, so it goes in the subdirectory the .gitignore keeps out
+# of the repo, even though it is the developer's own.
+OUT = HERE / "artifacts" / "figures" / "faces"
 PORT = 8905
 
 LAB = Path(r"C:\Users\amuel\OneDrive\Desktop\wisc-psychology-lab")
@@ -142,7 +144,7 @@ def main() -> int:
     dest = OUT / "5-visual-comparison.png"
     cv2.imwrite(str(dest), strip)
     print(f"wrote {dest}")
-    print("  (developer's own face — safe to publish, unlike every CFD render)")
+    print("  (developer's own face — your own face, so it is yours to share; kept out of git by default)")
     return 0
 
 

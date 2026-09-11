@@ -40,6 +40,8 @@ jaw-opening and lip-parting removed:
 |---|---|---|---|---|
 | closed-mouth smile | 0.506 | 0.276 | 1.9 | 0.09 – 1.41 |
 
+![Distribution of own-smile amplitude, and what the strong preset adds as a share of it](artifacts/figures/1-amplitude-spread.png)
+
 So the same added displacement is a very different share of each person's
 expressive range. Expressed that way — what fraction of this person's own smile
 are we adding? — the current manipulation looks like this:
@@ -101,6 +103,8 @@ From classical test theory, with single-measurement reliability 0.56:
 | 5 | 0.067 | 60% |
 | 10 | 0.047 | 72% |
 | 20 | 0.033 | 80% |
+
+![Residual dispersion against number of observed smiles](artifacts/figures/4-calibration-need.png)
 
 **One smile is barely better than no calibration**, because a single smile is
 itself a noisy sample of the person. The gain has to be averaged over several.
@@ -230,6 +234,8 @@ not what it intended.
 | current | 0.232 | 1.79 | 0.081 – 0.222 (2.7x) |
 | normalized | **0.111** | **1.29** | 0.084 – 0.163 (1.9x) |
 
+![Delivered dose per face, current versus normalized](artifacts/figures/2-crossface.png)
+
 A 52% reduction, and 0.111 is at the floor of what can be measured: re-detecting
 the same warp on the same face recovers it with about 12% frame-to-frame spread,
 so the residual is instrument noise rather than remaining inequality.
@@ -256,6 +262,8 @@ nothing but how it sits should get an identical dose:
 |---|---|---|
 | current | 0.158 | 0.061 |
 | normalized | **0.113** | **0.021** |
+
+![Delivered dose across camera conditions](artifacts/figures/3-camera-views.png)
 
 The asymmetry number is the more interesting one. The production morph applies
 its displacement along *image* axes, so a tilted head gets one corner sliding
