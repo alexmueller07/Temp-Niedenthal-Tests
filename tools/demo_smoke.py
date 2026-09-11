@@ -47,9 +47,21 @@ def main() -> int:
         with sync_playwright() as pw:
             launch = {"headless": not args.headed}
             if args.headed:
-                launch["args"] = ["--window-position=-2400,-2400"]
+                # An off-screen window gets its requestAnimationFrame
+                # throttled to a crawl, which looks exactly like a slow
+                # pipeline. These three flags stop Chromium backgrounding it.
+                launch["args"] = [
+                    "--window-position=-2400,-2400",
+                    "--disable-background-timer-throttling",
+                    "--disable-renderer-backgrounding",
+                    "--disable-backgrounding-occluded-windows",
+                ]
             browser = pw.chromium.launch(**launch)
-            page = browser.new_page(viewport={"width": 1500, "height": 1400})
+            ctx = browser.new_context(viewport={"width": 1500, "height": 1400})
+            # Deny the camera so the corpus fallback is exercised
+            # deterministically, whatever hardware this machine has.
+            ctx.grant_permissions([])
+            page = ctx.new_page()
             errors: list[str] = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             def on_console(m):

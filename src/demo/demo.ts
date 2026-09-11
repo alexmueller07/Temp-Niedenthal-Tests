@@ -108,9 +108,13 @@ class Demo {
 
   private async startWebcam() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Bounded, because getUserMedia does not reject when a permission prompt
+      // is sitting unanswered — it simply never settles, and the render loop
+      // below never starts. A page that hangs forever on a dialog nobody
+      // clicked is worse than one that falls back to a test face.
+      const stream = await withTimeout(navigator.mediaDevices.getUserMedia({
         video: { width: W, height: H }, audio: false,
-      })
+      }), 4000, 'camera did not respond')
       this.video.srcObject = stream
       this.video.muted = true
       this.video.playsInline = true
@@ -433,6 +437,14 @@ function syncSliders(v: ViewParams) {
   set('roll', v.rollDeg, `${v.rollDeg.toFixed(0)}°`)
   set('yaw', v.yawDeg, `${v.yawDeg.toFixed(0)}°`)
   set('scale', v.scale, `${v.scale.toFixed(2)}×`)
+}
+
+/** Reject if a promise has not settled in time. */
+function withTimeout<T>(p: Promise<T>, ms: number, why: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(why)), ms)),
+  ])
 }
 
 function fmt(v: number): string {
