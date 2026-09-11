@@ -115,16 +115,6 @@ export function readSmile(
   }
 }
 
-/** Flatten a canonical mouth shape into the [x,y,…] layout used throughout. */
-export function flatten(canonMouth: ArrayLike<Pt>): Float64Array {
-  const out = new Float64Array(DIM)
-  for (let k = 0; k < N; k++) {
-    out[2 * k] = canonMouth[k].x
-    out[2 * k + 1] = canonMouth[k].y
-  }
-  return out
-}
-
 export function dot(a: Float64Array, b: Float64Array): number {
   let s = 0
   for (let i = 0; i < a.length; i++) s += a[i] * b[i]

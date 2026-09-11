@@ -251,30 +251,6 @@ export function poseScaleFactor(template: Float64Array, pose: HeadPose | null): 
   return Math.min(1, Math.max(0.6, f))
 }
 
-/**
- * Project a canonical on-face displacement out through the head rotation.
- *
- * A smile happens on the surface of the face, so under yaw or pitch its image
- * projection is foreshortened — and by different amounts on the near and far
- * side. Applying the same screen-space vector regardless, as the production
- * code does, over-delivers on one side and under-delivers on the other, which
- * manufactures exactly the left/right asymmetry the app's own classifier reads
- * as a dominance smile.
- *
- * Note this uses only the head *rotation*. MediaPipe's per-landmark z is a
- * regressed depth with expression-correlated bias; using it would inject noise
- * into the very quantity we are trying to hold steady.
- */
-export function projectThroughPose(d: Pt, pose: HeadPose | null): Pt {
-  if (!pose) return d
-  const r = pose.r3
-  // Canonical tangent plane is the face's own xy; take the x and y rows of R3.
-  return {
-    x: r[0] * d.x + r[1] * d.y,
-    y: r[3] * d.x + r[4] * d.y,
-  }
-}
-
 // ---------------------------------------------------------------------------
 
 function median(a: Float64Array): number {

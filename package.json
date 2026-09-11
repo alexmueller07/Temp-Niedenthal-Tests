@@ -8,7 +8,8 @@
     "assets": "node tools/copy-assets.mjs",
     "dev": "esbuild src/demo/demo.ts src/harness/harness.ts --bundle --format=esm --sourcemap --outdir=public/dist --entry-names=[name] --serve=127.0.0.1:8900 --servedir=public",
     "build": "esbuild src/demo/demo.ts src/harness/harness.ts --bundle --format=esm --outdir=public/dist --entry-names=[name]",
-    "typecheck": "tsc --noEmit && node tools/check-portable.mjs"
+    "typecheck": "tsc --noEmit && node tools/check-portable.mjs",
+    "test": "npm run typecheck && .venv/Scripts/python.exe tools/test_invariance.py"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

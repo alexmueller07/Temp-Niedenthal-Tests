@@ -282,6 +282,31 @@ human ratings.
   conversation calibrating before the manipulation starts?** Both answers are
   defensible; they lead to different studies.
 
+## The validation this is missing, and how to run it
+
+Every number here is geometry or detector output. The claim the lab actually
+cares about — that the manipulation *reads* as equally strong on everyone — has
+not been tested, and cannot be by any of this.
+
+It is a small study. Per identity, render three clips from the same source
+footage: unmorphed, current at the chosen preset, normalized at the same preset.
+Show each rater one condition per identity, between-subjects within identity so
+nobody can contrast conditions on the same face. Ask "how much is this person
+smiling", 0-100. The outcome is the per-identity treated-minus-sham difference,
+and the quantity to compare is the **spread of that difference across
+identities** — the same statistic as §10, but with people as the instrument.
+
+Rough power: rating SD is typically around 15, so ~15 raters per
+identity-condition puts the standard error of one identity's difference near
+5.5. With 24 identities that estimates the spread of true differences to about
+±20% relative, which is enough to tell CV 0.11 from CV 0.23 but not enough to
+resolve small differences between two good versions.
+
+Worth running the detectability question in the same session: same person, same
+segment, sham versus treated, counterbalanced, "which of these is digitally
+altered?" That is the number a deception study actually needs, and it should be
+preregistered for the strong preset rather than assumed to be zero.
+
 ## Limitations — read before quoting any of this
 
 - **CFD smiles are posed stills, not conversation.** Part of the closed-vs-toothy
