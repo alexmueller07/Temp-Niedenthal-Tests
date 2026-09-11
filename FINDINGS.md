@@ -159,7 +159,25 @@ The one I predicted — that "how tall they are" works through the mouth region
 being clipped at the frame edge — is real but minor: 7%, and only at extreme
 framing. Distance, which I also expected to matter, is already perfect.
 
-The one that actually dominates is **head turn**. The morph's yaw gate fades the
+**How head turn was simulated, and what that does and does not license.** The
+table above comes from rotating each face's 3D landmark cloud and re-projecting
+it through a plausible webcam focal length. That is a fair simulation of the
+*geometry* — where the landmarks end up — and the yaw-gate result rests on it.
+It says nothing about *appearance*: a turned head also hides part of itself and
+shades differently, which no landmark rotation reproduces.
+
+Re-projecting the rendered image instead does not help. A camera-rotation
+homography applied to an already-flat photograph keystones it; checked by
+re-detecting the pose on the transformed frame, a commanded 20° of yaw comes back
+as about 7° of yaw plus 10° of spurious roll. (Roll and distance *are* exact by
+the same check: 15° in, 15.6° out; scale exact to the commanded factor.)
+
+So the rendered behaviour under a real head turn is untested. The cheap fix is
+footage: the available dev clips are 17-20 frames with a yaw range of 0-4°, so
+someone needs to sit in front of the demo and turn their head while it records.
+The demo has a recorder button for exactly that.
+
+The mechanism that dominates is **head turn**. The morph's yaw gate fades the
 manipulation to *zero* between symmetry 0.65 and 0.35, and across a ±30° turn
 that swings the dose by more than 100% of its mean. Head turns track who is
 speaking. **So the dose is silently confounded with conversational role** — a
