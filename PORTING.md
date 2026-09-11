@@ -56,9 +56,19 @@ calibration window, nothing to explain to a participant.
 
 1. Copy `src/algo/*.ts` to `renderer/lib/faceMorph/`.
 2. In `types.ts`, replace the local `ExpressionState` / `SmileType` /
-   `ExpressionLabel` declarations with `export * from '../../../main/protocol'`.
-   They are already byte-identical — that is checked by the type assertion at
-   the bottom of `FaceMorphNormalized.ts`.
+   `ExpressionLabel` declarations with the app's own. Import *and* re-export —
+   a bare `export ... from` re-exports the names without binding them locally,
+   and `FaceMorphAPI` further down the file refers to `ExpressionState` by name:
+
+   ```ts
+   import type {
+     SmileType, ExpressionLabel, ExpressionState,
+   } from '../../../main/protocol'
+   export type { SmileType, ExpressionLabel, ExpressionState }
+   ```
+
+   The declarations are otherwise identical, which the type assertion at the
+   bottom of `FaceMorphNormalized.ts` checks at compile time.
 3. Point the asset paths in `landmarkerHost.ts` back at `/mediapipe/...`.
 4. Construct with `calibrate: false, unit: 'population'`. That is the geometry
    layer alone: same physical dose for everyone, now independent of how they sit.
@@ -69,6 +79,12 @@ calibration window, nothing to explain to a participant.
    Both do `new FaceMorphProcessor()` and call `render(video, ctx, w, h, ts)`.
    The new class satisfies the same interface; `render` accepts a wider source
    type, which `HTMLVideoElement` still satisfies.
+
+**This has been done and it compiles.** The whole sequence was run against a
+scratch copy of the app with its real `node_modules`, and
+`tsc -p renderer/tsconfig.json --noEmit` passes with the new morph in place and
+`faceMorph.ts` deleted. The only thing that needed fixing beyond a file copy was
+the import/re-export above.
 
 Nothing else in the app changes. `alpha` keeps its meaning and its range, and
 the preset values still work — `ALPHA_TO_SMILE_UNITS` is set so alpha 1.9 lands
