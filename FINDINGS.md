@@ -247,6 +247,28 @@ Two things worth being precise about:
   along a smile axis fitted to 307 real neutral-to-smile pairs produces a more
   uniform appearance change than the hand-tuned field does.
 
+**Same face, different camera.** Ten faces, each rendered through seven camera
+conditions that are exact image operations — distance 0.72x to 1.35x, framing
+shifted down 18% of frame height, roll -15 to +25 degrees. A face that differs in
+nothing but how it sits should get an identical dose:
+
+| | within-face CV of delivered dose | induced L/R asymmetry, range |
+|---|---|---|
+| current | 0.158 | 0.061 |
+| normalized | **0.113** | **0.021** |
+
+The asymmetry number is the more interesting one. The production morph applies
+its displacement along *image* axes, so a tilted head gets one corner sliding
+along the lip line while the other lifts across it — and the app's own classifier
+reads left/right asymmetry as a **dominance** smile. The current implementation
+manufactures about three times as much of that artifact across these conditions
+as the normalized one does.
+
+Neither is flat under strong roll: at +25 degrees the current morph delivers 69%
+of its frontal dose and the normalized one 85%. Some of that residual is the
+detector itself getting less accurate on a rolled image — it affects both — so
+85% is closer to a floor than to a failure.
+
 ## 11. The "strong" preset is past what an image warp can render
 
 Local area stretch in the rendered output, measured per frame:
