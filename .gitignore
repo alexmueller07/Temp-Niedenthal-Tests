@@ -1,0 +1,31 @@
+# ---- Corpus and derived media: NEVER commit ----
+# The Chicago Face Database licence forbids redistributing images, and this repo
+# is public. No dataset images, crops, frame sequences, or rendered faces.
+corpus/
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.mkv
+*.webm
+*.avi
+corpus.local.json
+
+# Cached landmark/feature extracts are derived from CFD images -- keep them local too.
+artifacts/cache/
+artifacts/runs/
+scratchpad/
+
+# ---- Dependencies / build ----
+node_modules/
+public/dist/
+public/models/
+public/vendor/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db

@@ -1,0 +1,233 @@
+# What actually makes the smile morph land unequally
+
+Measured on the Chicago Face Database: 1,433 photographs, 823 identities, of
+which 153 have a neutral photograph plus both a closed-mouth and a toothy smile.
+Everything below is computed from face landmarks — no rendering, no human
+ratings yet. Reproduce with `tools/cfd_extract.py` then `tools/cfd_analysis.py`
+and `tools/s0_amplitude.py`.
+
+**Headline: the warp is not the problem. The warp is almost perfectly consistent.
+What varies is how big each person's own smile is, and the current morph is
+blind to it.**
+
+---
+
+## 1. The warp already delivers an equal displacement
+
+At `alpha = 1.9` ("Smile + strong"), across 823 faces at identical framing:
+
+| measure | CV | P90/P10 |
+|---|---|---|
+| corner travel, in mouth-widths | **0.004** | 1.01 |
+| corner travel, in interpupillary distances | 0.072 | 1.21 |
+| mouth width itself, in interpupillary distances | 0.073 | 1.21 |
+
+The first row is the morph doing exactly what it was designed to do. The second
+row's 7% is not a flaw in the warp — it is anatomy: the CV of delivered travel
+per IPD (0.072) is identical to the CV of mouth width per IPD (0.073), so every
+bit of it is just people having different-sized mouths.
+
+I expected lip thickness and mouth opening to move the gain through the
+`sin(pi*u)sin(pi*v)` window term. They barely do: the field weight landing on
+the corner has CV 0.004 across all 823 faces. That hypothesis was wrong.
+
+## 2. What does vary: people's own smiles differ about twofold
+
+Each person's own neutral-to-smile shape change, in canonical units, with
+jaw-opening and lip-parting removed:
+
+| | mean | CV | P90/P10 | full range |
+|---|---|---|---|---|
+| closed-mouth smile | 0.506 | 0.276 | 1.9 | 0.09 – 1.41 |
+
+So the same added displacement is a very different share of each person's
+expressive range. Expressed that way — what fraction of this person's own smile
+are we adding? — the current manipulation looks like this:
+
+| | value |
+|---|---|
+| delivered dose / own smile amplitude, CV | **0.559** |
+| P90 / P10 | **2.07** |
+| full range across 153 people | 0.085 – 1.14 (**13x**) |
+| correlation between delivered dose and what the face needs | **−0.06** |
+
+That last number is the point. The morph is not merely imprecise about
+expressive range; it does not know about it at all.
+
+**This is ~8x larger than the geometric dispersion, and it is the thing worth
+fixing.**
+
+## 3. Smile size is a real property of the person, not posing noise
+
+Two smiles per person (closed-mouth and toothy) act as parallel measures:
+
+| correlation | r |
+|---|---|
+| closed-mouth vs toothy smile amplitude, same person | **+0.56** |
+| closed-mouth smile vs **angry** amplitude, same person | +0.02 |
+| closed-mouth smile vs **fearful** amplitude, same person | +0.09 |
+
+It is specific to smiling — it is not a general tendency to pose hard. So there
+is a genuine per-person quantity to calibrate against. Reliability of a single
+observation is 0.56; of a two-observation average, 0.72.
+
+## 4. Nothing about the face predicts it
+
+Leave-one-out R² predicting a person's own smile amplitude:
+
+| predictors | count | LOO R² |
+|---|---|---|
+| landmark geometry (mouth width, lip height, resting corner rise, face width, lower-face height) | 5 | −0.07 |
+| CFD physical measurements (lip thickness, lip fullness, face widths, cheekbone prominence, fWHR, luminance, skin colour, …) | 23 | −0.10 |
+| CFD human ratings of the neutral face (happy, attractive, dominant, warm, babyfaced, masculine/feminine, …) | 9 | **+0.01** |
+| all of the above | 37 | −0.10 |
+
+The reliability ceiling here is R² = 0.72, so there was plenty of room to find
+something. Nothing did. **A static per-face gain model cannot work.** How
+expressive someone is is not written on their face — it has to be observed.
+
+This kills the cheapest possible fix, which is worth knowing before building it.
+
+## 5. How much observation is needed
+
+From classical test theory, with single-measurement reliability 0.56:
+
+| calibration | residual dispersion (CV) | improvement |
+|---|---|---|
+| none — population mean gain | 0.168 | — |
+| 1 observed smile | 0.150 | 11% |
+| 2 | 0.106 | 37% |
+| 3 | 0.086 | 49% |
+| 5 | 0.067 | 60% |
+| 10 | 0.047 | 72% |
+| 20 | 0.033 | 80% |
+
+**One smile is barely better than no calibration**, because a single smile is
+itself a noisy sample of the person. The gain has to be averaged over several.
+
+That has a direct design consequence: a brief "look at the camera" calibration
+moment would not work even if it did reliably produce a smile. A few minutes of
+actual conversation would. The current app has neither — the waiting room is a
+silent "please wait for the researcher" screen, and there is no microphone check
+anywhere in the codebase.
+
+## 6. Toothy vs closed-mouth smiles: solved, and it needs no data
+
+Randy's worry — *what if they give us a toothy smile, does it matter, the morph
+is closed-mouth* — turns out to be fixable analytically. Jaw opening is a rigid
+rotation of the mandible about a fixed hinge, so its displacement field can be
+written down rather than learned; same for the lips parting. Projecting both out
+of the measured shape change:
+
+| | median cos(closed, toothy) | 10th percentile |
+|---|---|---|
+| raw shape change | 0.820 | 0.620 |
+| jaw-opening removed | **0.972** | **0.923** |
+| jaw-opening + lip-parting removed | 0.968 | 0.914 |
+
+After the projection the two kinds of smile are essentially the same
+measurement. **It does not matter which kind of smile we happen to observe.**
+
+## 7. Smile direction is the same in nearly everyone
+
+Median cosine between any two people's smile axes: **0.94**. Mean cosine of an
+individual smile with the corpus average: **0.96**.
+
+So there is nothing to gain from learning each person's smile *direction* — only
+its *size*. That removes a large chunk of proposed machinery.
+
+A useful by-product: the corpus-average smile axis, computed from 307 real
+neutral-to-smile pairs, is a better description of a smile than the current
+hand-tuned formula (see §9), and it ships as `src/algo/faceModel.gen.ts`.
+
+## 8. Camera and pose: it is head-turn, not height
+
+Same face, varied only in how it sits in front of the camera. Within-face CV of
+the delivered dose — this should be zero:
+
+| condition | within-face CV | notes |
+|---|---|---|
+| distance (IPD 45–200 px) | **0.000** | already exactly invariant |
+| camera height / pitch (±20°) | 0.043 | small |
+| height in frame (eyes at 0.12–0.78 of frame height) | 0.070 | ROI clipped by the frame edge in 18% of cells |
+| head roll (±25°) | 0.123 | and the yaw gate fires spuriously in 3% of cells |
+| **head yaw (±30°)** | **1.331** | **the yaw gate attenuates the morph in 86% of cells** |
+
+Two things here.
+
+The one I predicted — that "how tall they are" works through the mouth region
+being clipped at the frame edge — is real but minor: 7%, and only at extreme
+framing. Distance, which I also expected to matter, is already perfect.
+
+The one that actually dominates is **head turn**. The morph's yaw gate fades the
+manipulation to *zero* between symmetry 0.65 and 0.35, and across a ±30° turn
+that swings the dose by more than 100% of its mean. Head turns track who is
+speaking. **So the dose is silently confounded with conversational role** — a
+participant receives more manipulation while listening face-on than while
+turning to speak. Head roll leaks into that gate too, because it is estimated
+from screen-x distances.
+
+## 9. Four validity problems, independent of any of this
+
+Found while reading `renderer/lib/faceMorph.ts`. These matter for studies already
+running.
+
+1. **The sham condition takes a different code path.** `if (|alphaCurrent − 1| <
+   0.02) return false` skips the warp entirely, so active frames pass through
+   ~192 affine resamples and sham frames pass through none. The two conditions
+   differ in local image softness for reasons unrelated to the manipulation.
+   Fix: always run the warp, with zero displacement, in sham.
+2. **Dose is confounded with speaking role**, via the yaw gate (§8).
+3. **`alpha` is not a common scale.** Smile uses gain 0.17, frown 0.13, and a
+   different field shape (the frown adds a lower-lip pout term). "Strong smile"
+   and "strong frown" differ by 31% in magnitude and are not two ends of one
+   axis, so dose-response across the presets is not interpretable as it stands.
+4. **The realized dose is never logged.** Telemetry records the commanded alpha;
+   the tween, the pose gate and the face-found state all sit between that and
+   the pixels. Under a multiplicative control law the realized dose would also
+   depend on what the participant is doing, which means the nominal preset is
+   not the independent variable.
+
+A fifth, cosmetic rather than a validity issue: the displacement field peaks at
+about 1.26 half-mouth-widths from the mouth centre — out on the cheek — where it
+is **1.28x stronger than at the lip corner it is meant to be moving**. This is
+consistent across faces (CV 0.001), so it does not cause inequality, but it does
+mean the warp drags cheek skin harder than lip.
+
+---
+
+## What follows
+
+- Equalizing the *geometry* is worth doing — head-turn is a genuine confound and
+  roll costs 12% — but it is not what Randy noticed. It buys maybe 10-15%.
+- Equalizing the *dose relative to each person's expressive range* is the real
+  job, it is worth a factor of about 3, and it **requires observing the person
+  smile several times**. There is no way around that: the face itself does not
+  tell you.
+- So the design question for Randy and Paula is not really an algorithm
+  question. It is: **do we want the manipulation scaled to each person's own
+  expressive range, and if so, is the study willing to spend a few minutes of
+  conversation calibrating before the manipulation starts?** Both answers are
+  defensible; they lead to different studies.
+
+## Limitations — read before quoting any of this
+
+- **CFD smiles are posed stills, not conversation.** Part of the closed-vs-toothy
+  disagreement is two different deliberate acts rather than measurement noise,
+  which makes the reliability of 0.56 a *lower* bound and the sample counts in §5
+  an *upper* bound. Re-check on video before committing to a calibration design.
+- **No perceptual validation yet.** Everything here is geometry. Geometric
+  amplitude is not the same thing as perceived smile intensity, and the
+  literature is clear that equal physical change is not equal perceived change
+  across identities. Human ratings are the only ground truth for that claim, and
+  none have been collected.
+- **The pose sweep rotates a landmark cloud and re-projects it.** For a pure
+  camera rotation that is exact; for head rotation it ignores self-occlusion and
+  shading, so nothing here is claimed beyond about ±30°.
+- **CFD is posed, studio-lit, frontal, high-resolution.** Lab webcam conditions
+  are none of those. The geometric findings should transfer; the landmark noise
+  will not.
+- Amplitude is measured as total canonical shape change over 40 lip landmarks.
+  Two alternatives (projection on the population axis, mouth-corner travel alone)
+  give reliabilities within 0.04 of each other, so the conclusions do not hinge
+  on that choice.

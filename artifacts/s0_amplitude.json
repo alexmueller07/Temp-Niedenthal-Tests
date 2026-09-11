@@ -1,0 +1,68 @@
+{
+  "A_trait": {
+    "n": 149,
+    "estimators": {
+      "whole_shape_norm": {
+        "cv_hc": 0.2756577357372506,
+        "cv_ho": 0.17478231325156526,
+        "r_hc_ho": 0.5591819783320373,
+        "r_hc_angry": 0.017196107369795086,
+        "spearman_brown_2": 0.7172760923394358
+      },
+      "projection_on_axis": {
+        "cv_hc": 0.3120273493388534,
+        "cv_ho": 0.17994863209437287,
+        "r_hc_ho": 0.5215158042944527,
+        "r_hc_angry": -0.07104340034142594,
+        "spearman_brown_2": 0.685521376541056
+      },
+      "corner_travel": {
+        "cv_hc": 0.2821350373785771,
+        "cv_ho": 0.1724372132566169,
+        "r_hc_ho": 0.5263223373821808,
+        "r_hc_angry": 0.12384556476986926,
+        "spearman_brown_2": 0.6896607937808005
+      }
+    },
+    "chosen": "whole_shape_norm"
+  },
+  "B_predictability": {
+    "landmark geometry only": {
+      "predictors": 5,
+      "loo_r2": -0.07240344433520085,
+      "lambda": 3
+    },
+    "CFD physical measurements": {
+      "predictors": 23,
+      "loo_r2": -0.09991934463713803,
+      "lambda": 0.3
+    },
+    "CFD perceptual ratings": {
+      "predictors": 9,
+      "loo_r2": 0.010968037285975951,
+      "lambda": 0.3
+    },
+    "everything": {
+      "predictors": 37,
+      "loo_r2": -0.1024126817175044,
+      "lambda": 0.3
+    }
+  },
+  "C_calibration": {
+    "cv_observed": 0.22522002449440792,
+    "reliability": 0.5591819783320373,
+    "residual_cv": {
+      "none": 0.1684160915795255,
+      "n=1": 0.14953287106967011,
+      "n=2": 0.10573570714365746,
+      "n=3": 0.08633284336477164,
+      "n=5": 0.06687313291649881,
+      "n=10": 0.047286445764445635,
+      "n=20": 0.033436566458249405
+    }
+  },
+  "sanity_resting_vs_rated_happy": {
+    "r": 0.17472942459508747,
+    "n": 685
+  }
+}

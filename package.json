@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "name": "morph-normalization-poc",
+  "version": "0.1.0",
+  "description": "Proof of concept: make the smile morph land equally on every face. Standalone -- the production app is not touched.",
+  "type": "module",
+  "scripts": {
+    "assets": "node tools/copy-assets.mjs",
+    "dev": "esbuild src/demo/demo.ts src/harness/harness.ts --bundle --format=esm --sourcemap --outdir=public/dist --serve=127.0.0.1:8900 --servedir=public",
+    "build": "esbuild src/demo/demo.ts src/harness/harness.ts --bundle --format=esm --outdir=public/dist",
+    "typecheck": "tsc --noEmit && node tools/check-portable.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.18"
+  }
+}
