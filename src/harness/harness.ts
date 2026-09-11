@@ -21,6 +21,7 @@
 
 import { FaceMorphCurrent } from '../algo/FaceMorphCurrent'
 import { FaceMorphNormalized, type NormalizedOptions } from '../algo/FaceMorphNormalized'
+import type { MorphSource } from '../algo/types'
 import { DRIVEN, LEFT_CORNER, OUTER_LIP, RIGHT_CORNER, RIGID_IDX } from '../algo/constants'
 import { CANONICAL_TEMPLATE } from '../algo/faceModel.gen'
 import { createLandmarker } from '../algo/landmarkerHost'
@@ -84,6 +85,9 @@ export interface Row {
    *  re-measured from the pixels, in interpupillary units. This is the primary
    *  outcome: it is what the warp actually achieved, not what it intended. */
   measuredTravel: number
+  /** Which path produced the frame, and what the bank held. */
+  usedMode?: string
+  bankCount?: number
   /** Warp quality, normalized implementation only. */
   maxExpansion?: number
   minExpansion?: number
@@ -99,7 +103,12 @@ export interface Row {
 }
 
 export interface RunSpec {
-  frames: Array<{ id: string; expr: string; group: string; url: string }>
+  /** `seedUrl`, when given, is fed to the processor before the test frame so
+   *  the appearance morph has one of this person's own smiles banked. In a
+   *  session that happens by itself; over still photographs it has to be
+   *  arranged, because a single neutral portrait never contains a smile. */
+  frames: Array<{ id: string; expr: string; group: string; url: string;
+                  seedUrl?: string }>
   alphas: number[]
   views: Array<{ name: string; params: Partial<ViewParams> }>
   impls: Array<'current' | 'normalized'>
@@ -239,6 +248,30 @@ class Harness {
     }
   }
 
+  /** Feed a smiling frame through the processor so it lands in the bank.
+   *  Rendered to a scratch canvas: nothing about the seed should reach the
+   *  output being measured. */
+  private seedBank(seed: ImageBitmap, view: ViewParams): void {
+    const src: CanvasImageSource = isIdentity(view)
+      ? seed : this.view.apply(seed, FRAME_W, FRAME_H, view)
+    const scratch = document.createElement('canvas')
+    scratch.width = FRAME_W
+    scratch.height = FRAME_H
+    const sctx = scratch.getContext('2d')!
+    this.normalized.setAlpha(1)
+    for (let i = 0; i < 4; i++) {
+      this.clock += 600
+      this.normalized.render(src as MorphSource, sctx, FRAME_W, FRAME_H, this.clock)
+    }
+    // Forced, not automatic. Automatic capture waits for a smile *event*, which
+    // needs the person's resting mouth to be known — and a run over still
+    // photographs never establishes one, because there is no stretch of frames
+    // where they are not smiling.
+    if (!this.normalized.captureNow()) {
+      console.warn('seed frame was not usable as a smile source')
+    }
+  }
+
   private renderCell(
     impl: 'current' | 'normalized', src: CanvasImageSource, alpha: number,
   ): { measures: Measures; msDetect: number; msWarp: number; extra: Partial<Row> } {
@@ -272,6 +305,8 @@ class Harness {
       extra.travelPerIpd = d.dose?.travelPerIpd
       extra.poseGain = d.dose?.poseGain
       extra.amplitudeUsed = d.calibration.amplitude
+      extra.usedMode = d.usedMode
+      extra.bankCount = d.bank.count
     }
     return { measures: this.measure(this.out), msDetect, msWarp, extra }
   }
@@ -285,6 +320,7 @@ class Harness {
 
     for (const f of spec.frames) {
       const bmp = await loadBitmap(f.url)
+      const seed = f.seedUrl ? await loadBitmap(f.seedUrl) : null
       for (const v of views) {
         const params: ViewParams = { ...IDENTITY_VIEW, ...v.params }
         const src: CanvasImageSource = isIdentity(params)
@@ -298,6 +334,7 @@ class Harness {
             this.normalized.calibration.setOverride(a ?? null)
             const rest = spec.rests?.[f.id]
             if (rest) this.normalized.calibration.setRestOverride(rest)
+            if (seed) this.seedBank(seed, params)
           }
           // Sham on the identical frame, for within-frame differencing.
           const sham = this.renderCell(impl, src, 1.0)
@@ -324,6 +361,7 @@ class Harness {
         }
       }
       bmp.close()
+      seed?.close()
     }
     return rows
   }

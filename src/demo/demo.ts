@@ -21,7 +21,7 @@
 
 import { FaceMorphCurrent } from '../algo/FaceMorphCurrent'
 import {
-  FaceMorphNormalized, type ControlLaw, type SmileUnit,
+  FaceMorphNormalized, type ControlLaw, type MorphMode, type SmileUnit,
 } from '../algo/FaceMorphNormalized'
 import {
   ALPHA_TO_SMILE_UNITS, AMPLITUDE_STATS, CANONICAL_TEMPLATE,
@@ -292,6 +292,24 @@ class Demo {
     $('calWeight').textContent = `${(c.personWeight * 100).toFixed(0)}%`
     $('calAmp').textContent = c.amplitude.toFixed(3)
     $('calResid').textContent = `${(c.expectedResidualCv * 100).toFixed(0)}%`
+    const b = this.normalized.debug.bank
+    $('bankCount').textContent = String(b.count)
+    $('bankLevels').textContent = b.count
+      ? b.levels.map((l) => l.toFixed(2)).join(', ') : '—'
+    const dbg = this.normalized.debug
+    $('usedMode').textContent = dbg.usedMode === 'appearance'
+      ? 'your own smile' : 'frame deform'
+    const m = dbg.morph
+    $('bMs').title = m
+      ? `live warp ${m.msWarpLive.toFixed(1)} | smile warp ${m.msWarpSmile.toFixed(1)}`
+        + ` | exposure ${m.msExposure.toFixed(1)} | composite ${m.msComposite.toFixed(1)}`
+      : ''
+    if (m) {
+      $('bMs').textContent =
+        `${(m.msWarpLive + m.msWarpSmile + m.msExposure + m.msComposite).toFixed(1)} ms`
+        + ` (${m.msWarpLive.toFixed(0)}+${m.msWarpSmile.toFixed(0)}`
+        + `+${m.msExposure.toFixed(0)}+${m.msComposite.toFixed(0)})`
+    }
   }
 
   // ---- sweeps ----------------------------------------------------------
@@ -397,6 +415,19 @@ class Demo {
     unit.addEventListener('change', () => {
       this.normalized.opts.unit = unit.value as SmileUnit
     })
+    const mode = $<HTMLSelectElement>('mode')
+    mode.addEventListener('change', () => {
+      this.normalized.opts.mode = mode.value as MorphMode
+    })
+    $('capture').addEventListener('click', () => {
+      const ok = this.normalized.captureNow()
+      $('capture').textContent = ok
+        ? 'Captured — smile more for another'
+        : 'Not a usable frame (face square to camera, and smiling)'
+      setTimeout(() => { $('capture').textContent = 'Capture this frame as a smile' }, 2500)
+    })
+    $('clearBank').addEventListener('click', () => this.normalized.smileBank.clear())
+
     const law = $<HTMLSelectElement>('law')
     law.addEventListener('change', () => {
       this.normalized.opts.law = law.value as ControlLaw

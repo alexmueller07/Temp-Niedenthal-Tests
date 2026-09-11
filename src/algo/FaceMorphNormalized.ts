@@ -34,6 +34,10 @@ import {
   type Frame, type HeadPose, type Pt,
 } from './procrustes'
 import { warpRegion, type WarpQuality, type Vec2 } from './warp'
+import { AppearanceMorph, type MorphQuality } from './appearanceMorph'
+import {
+  SmileBank, captureAligned, meshCanonPoints, type BankStatus,
+} from './smileBank'
 import type {
   ExpressionState, FaceMorphAPI, MorphSource, RealizedDose,
 } from './types'
@@ -58,7 +62,18 @@ export type ControlLaw =
    *  measured and argued about rather than assumed away. */
   | 'endpoint'
 
+/** How the smile is produced. */
+export type MorphMode =
+  /** Deform the live frame's own pixels. Moves landmarks and nothing else --
+   *  no teeth, no nasolabial fold, no shading. Always available. */
+  | 'geometric'
+  /** Morph toward a frame of this person actually smiling, captured earlier in
+   *  the session. Brings the appearance with it. Falls back to geometric until
+   *  a keyframe has been captured. */
+  | 'appearance'
+
 export interface NormalizedOptions {
+  mode: MorphMode
   unit: SmileUnit
   law: ControlLaw
   /** Smile units per unit of alpha. The default is set so alpha 1.9 lands at
@@ -87,9 +102,15 @@ export interface NormalizedOptions {
    *  the warp has nothing meaningful to move. Degrees. */
   yawCutoffDeg: number
   yawFeatherDeg: number
+  /** Live smile level, in the person's own units, above which a frame is worth
+   *  keeping as a morph source. */
+  captureThreshold: number
+  /** Don't bank frames faster than this. */
+  captureIntervalMs: number
 }
 
 export const DEFAULT_OPTIONS: NormalizedOptions = {
+  mode: 'appearance',
   unit: 'self',
   law: 'additive',
   alphaScale: ALPHA_TO_SMILE_UNITS,
@@ -99,6 +120,8 @@ export const DEFAULT_OPTIONS: NormalizedOptions = {
   alwaysWarp: true,
   yawCutoffDeg: 42,
   yawFeatherDeg: 8,
+  captureThreshold: 0.22,
+  captureIntervalMs: 500,
 }
 
 const ALPHA_TWEEN_TAU_MS = 350
@@ -116,6 +139,12 @@ export interface NormalizedDebug {
   displayedSmileUnits: number
   calibration: CalibrationStatus
   quality: WarpQuality | null
+  /** Set when the appearance morph ran; null when it fell back to geometry. */
+  morph: MorphQuality | null
+  /** What the smile bank holds. */
+  bank: BankStatus
+  /** Which path actually produced this frame. */
+  usedMode: MorphMode
   dose: RealizedDose | null
   /** Per-stage timings, milliseconds. */
   msDetect: number
@@ -135,6 +164,14 @@ export class FaceMorphNormalized implements FaceMorphAPI {
   private filter = new OneEuroLandmarks()
   private calib = new Calibration()
   private detector = new ExpressionDetector()
+  private bank = new SmileBank()
+  private appearance = new AppearanceMorph()
+  private lastCaptureTs = 0
+  /** Enough of the last accepted frame to bank it on demand. */
+  private lastGood: {
+    frame: Frame; mesh: Float64Array; level: number; jawOpen: number
+    width: number; height: number
+  } | null = null
 
   private lastFaceFound = false
   private lastFaceTs = 0
@@ -162,7 +199,8 @@ export class FaceMorphNormalized implements FaceMorphAPI {
 
     this.debugState = {
       frame: null, pose: null, liveSmileUnits: 0, displayedSmileUnits: 0,
-      calibration: this.calib.status, quality: null, dose: null,
+      calibration: this.calib.status, quality: null, morph: null,
+      bank: this.bank.status, usedMode: 'geometric', dose: null,
       msDetect: 0, msWarp: 0,
     }
   }
@@ -176,6 +214,30 @@ export class FaceMorphNormalized implements FaceMorphAPI {
   get expression(): ExpressionState | null { return this.detector.expression }
   get debug(): NormalizedDebug { return this.debugState }
   get calibration(): Calibration { return this.calib }
+  get smileBank(): SmileBank { return this.bank }
+
+  /**
+   * Bank the most recent frame as a smile source, whatever its level.
+   *
+   * Automatic capture waits for a genuine smile, which is right for a session
+   * but unreliable for a demo — you cannot ask someone to smile on cue and also
+   * watch the screen. This takes whatever is on camera now, provided the face
+   * is square enough and well enough tracked to be transplantable later.
+   * Returns false when it is not.
+   */
+  captureNow(): boolean {
+    const g = this.lastGood
+    if (!g || g.level < 0.05) return false
+    this.bank.offer({
+      image: captureAligned(this.src, g.frame, g.width, g.height),
+      canonPoints: g.mesh,
+      level: g.level,
+      jawOpen: g.jawOpen,
+      capturedAt: performance.now(),
+    })
+    this.debugState.bank = this.bank.status
+    return true
+  }
 
   setAlpha(alpha: number): void {
     const wasNeutral = Math.abs(this.alphaTarget - 1) < 1e-6
@@ -206,6 +268,9 @@ export class FaceMorphNormalized implements FaceMorphAPI {
   reset(): void {
     this.filter.reset()
     this.calib.reset()
+    this.bank.clear()
+    this.lastCaptureTs = 0
+    this.lastGood = null
     this.detector = new ExpressionDetector()
     this.alphaCurrent = this.alphaTarget
     this.lastTweenTs = null
@@ -268,7 +333,9 @@ export class FaceMorphNormalized implements FaceMorphAPI {
 
     // Expression is always read from the RAW frame. The rules engine downstream
     // depends on it being the participant's genuine expression.
-    this.detector.update(result.faceBlendshapes?.[0]?.categories ?? null, tsMs)
+    const shapes = result.faceBlendshapes?.[0]?.categories ?? null
+    this.detector.update(shapes, tsMs)
+    const jawOpen = shapes?.find((c) => c.categoryName === 'jawOpen')?.score ?? 0
 
     // --- geometry -------------------------------------------------------
     const raw = faces[0]
@@ -382,6 +449,59 @@ export class FaceMorphNormalized implements FaceMorphAPI {
         cornerTravelPx += Math.hypot(dImg.x, dImg.y) / 2
       }
     }
+
+    // --- bank this person's own smile, when they produce one -------------
+    // Only the raw frame is ever banked, never the morphed output, and only
+    // when the head is square enough that the stored expression can be
+    // transplanted onto a different pose later without a visible pose jump.
+    const canonMesh = meshCanonPoints((i) => toCanonical(frame, lm[i]))
+    this.lastGood = (poseOk && frame.residual < CALIB_MAX_RESIDUAL)
+      ? { frame, mesh: canonMesh, level: liveUnits, jawOpen, width, height }
+      : null
+    if (
+      this.opts.mode === 'appearance'
+      && poseOk && frame.residual < CALIB_MAX_RESIDUAL
+      && liveUnits >= this.opts.captureThreshold
+      && this.calib.atSmilePeak(canonMouth)
+      && tsMs - this.lastCaptureTs >= this.opts.captureIntervalMs
+    ) {
+      this.lastCaptureTs = tsMs
+      this.bank.offer({
+        image: captureAligned(this.src, frame, width, height),
+        canonPoints: canonMesh,
+        level: liveUnits,
+        jawOpen,
+        capturedAt: tsMs,
+      })
+    }
+    this.debugState.bank = this.bank.status
+
+    // --- morph toward that smile, if there is one to morph toward ---------
+    // The fraction is worked out in expression units: to display `target` when
+    // the face is at `liveUnits` and the source frame is at the keyframe's
+    // level, go that proportion of the way. If the person is already smiling
+    // harder than anything banked there is nothing to borrow, so it falls
+    // through to the geometric path.
+    if (this.opts.mode === 'appearance' && deltaUnits > 0) {
+      const kf = this.bank.pick(clampedTarget, jawOpen)
+      const span = kf ? kf.level - liveUnits : 0
+      if (kf && span > 0.05) {
+        const tMorph = Math.min(1, deltaUnits / span)
+        const t1 = performance.now()
+        const mq = this.appearance.render(
+          dstCtx, this.src, width, height, frame, canonMesh, kf, tMorph, ipd)
+        this.debugState.msWarp = performance.now() - t1
+        this.debugState.morph = mq
+        this.debugState.usedMode = 'appearance'
+        this.debugState.quality = null
+        this.debugState.dose = this.makeDose(
+          commanded, deltaUnits, cornerTravelPx / Math.max(ipd, 1e-6),
+          poseGain, clamped, pose)
+        return true
+      }
+    }
+    this.debugState.morph = null
+    this.debugState.usedMode = 'geometric'
 
     const nearlyZero = Math.abs(deltaUnits) * scaleAmplitude < 1e-4
     if (nearlyZero && !this.opts.alwaysWarp) {

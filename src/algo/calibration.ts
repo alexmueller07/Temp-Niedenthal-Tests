@@ -248,6 +248,24 @@ export class Calibration {
     }
   }
 
+  /**
+   * True when a smile is in progress and the face is at or near its peak.
+   *
+   * This is the signal to bank a frame. A bare level threshold is not enough:
+   * before the person's own resting mouth has been observed, "how much are they
+   * smiling" is measured against the corpus average, and someone whose mouth
+   * rests upturned reads as smiling when they are not — so a neutral frame gets
+   * banked as a smile source and morphing toward it does nothing.
+   */
+  atSmilePeak(canonMouth: ArrayLike<Pt>): boolean {
+    if (!this.eventOpen || !this.haveOwnRest) return false
+    const mag = readSmile(canonMouth, this.rest).magnitude
+    return mag >= this.eventPeak * 0.92
+  }
+
+  /** Whether this person's own resting mouth has been observed yet. */
+  get restKnown(): boolean { return this.haveOwnRest }
+
   /** Face lost, or a long gap: close any open event without recording it. */
   interrupt() {
     this.eventOpen = false

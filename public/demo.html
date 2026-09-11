@@ -97,6 +97,11 @@
     <span class="kv dim" id="commandedUnits">= 0.00 smile units</span>
   </div>
   <div class="row" style="margin-top:8px">
+    <label class="ctl"><span class="name">how</span>
+      <select id="mode">
+        <option value="appearance">morph toward your own smile</option>
+        <option value="geometric">deform the live frame (old way)</option>
+      </select></label>
     <label class="ctl"><span class="name">unit</span>
       <select id="unit">
         <option value="self">fraction of this person's own smile</option>
@@ -169,6 +174,23 @@
     because rotating a camera about an already-flat picture is not the same as
     rotating a head). It is there to show the warp surviving a perspective
     distortion, nothing more.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Smile bank — frames of your own smile, captured live</h2>
+  <div class="row">
+    <span class="kv">held <b id="bankCount">0</b></span>
+    <span class="kv">levels <b id="bankLevels">—</b></span>
+    <span class="kv">rendering via <b id="usedMode">—</b></span>
+    <button id="capture">Capture this frame as a smile</button>
+    <button id="clearBank">Clear bank</button>
+  </div>
+  <p class="note">
+    Smile and it banks a frame by itself — that is how it would work in a
+    session. The button is here so a demo does not depend on catching one. With
+    nothing banked it falls back to the old deform-the-frame path, which is
+    what the <i>rendering via</i> readout tells you.
   </p>
 </div>
 
